@@ -3,6 +3,8 @@
 # Note: This only prints the text data that is visible in the active Spreadsheet View.
 # If you've filtered text, only the visible text will be printed to the CSV file
 # Usage: Copy to ~/.hiero/Python/StartupUI
+# v1.0 18/06/13
+
 import hiero.core.events
 import hiero.ui
 import os, csv
