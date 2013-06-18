@@ -4,6 +4,7 @@
 # If you've filtered text, only the visible text will be printed to the CSV file
 # Usage: Copy to ~/.hiero/Python/StartupUI
 # v1.0 18/06/13
+# Known Issues: Order of columns is not currently preserved in the CSV file yet.
 
 import hiero.core.events
 import hiero.ui
