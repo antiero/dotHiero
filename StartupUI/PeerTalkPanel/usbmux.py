@@ -19,7 +19,7 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 
 import socket, struct, select, sys
-import threading
+
 try:
 	import plistlib
 	haveplist = True
@@ -234,9 +234,9 @@ class USBMux(object):
 		connector = MuxConnection(self.socketpath, self.protoclass)
 		return connector.connect(device, port)
 
-def monitorMux():
+if __name__ == "__main__":
+	mux = USBMux()
 	print "Waiting for devices..."
-	global mux
 	if not mux.devices:
 		mux.process(0.1)
 	while True:
@@ -244,12 +244,3 @@ def monitorMux():
 		for dev in mux.devices:
 			print dev
 		mux.process()
-
-mux = ""
-if __name__ == "__main__":
-	global mux
-	mux = USBMux()
-	t = threading.Thread(target=monitorMux)
-	t.start()
-	
-
