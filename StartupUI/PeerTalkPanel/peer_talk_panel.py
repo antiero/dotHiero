@@ -38,6 +38,20 @@ from PySide.QtGui import *
 from PySide.QtCore import *
 from PySide.QtWebKit import *
 
+s = 'hiero.core.env'
+eval(s)
+# Execute the incoming Python commmand in Nuke
+def doPython( s ):
+  print 'IN DO PYTHON, message was %s' % s
+  try:
+    print "TRYING TO EVAL 's'"
+    eval(s)
+  except:
+    print 'Coud not eval this string %s!' % s
+
+print 'Testing doPython...'
+doPython('hiero.core.env')
+
 class PeerTalkThread(threading.Thread):
   def __init__(self,*args):
     self._psock = args[0]
@@ -57,8 +71,11 @@ class PeerTalkThread(threading.Thread):
         if len(data)>0:
           print 'Len of recv data is: %i' % len(data)
 
-          msgStr = str(repr(data))
-          print 'msgStr was ' + msgStr
+          msgStr = repr(data)
+          msg = msgStr.split('$HIERO://')[1][:-1]
+
+          print 'Received: %s' % msg
+          doPython(msg)
 
       except:
         #print 'Received something, but could not print it'

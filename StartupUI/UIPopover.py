@@ -8,7 +8,7 @@ class UIPopover(PySide.QtGui.QWidget):
     PySide.QtGui.QWidget.__init__(self)
     self.setAttribute( PySide.QtCore.Qt.WA_TranslucentBackground, True )
     self.setWindowFlags( PySide.QtCore.Qt.Popup | PySide.QtCore.Qt.FramelessWindowHint )
-    self.setMouseTracking(False)
+    self.setMouseTracking(True)
     self._actions = []
     self._highlightAction = None
     self._layout = None
@@ -35,7 +35,7 @@ class UIPopover(PySide.QtGui.QWidget):
     painter.setRenderHint(PySide.QtGui.QPainter.Antialiasing, True)
     painter.setPen( PySide.QtCore.Qt.white )
     painter.setBrush( PySide.QtGui.QColor(0, 0, 0, 64) )
-    painter.drawRoundedRect(self.rect(), 20, 20)
+    #painter.drawRoundedRect(self.rect(), 20, 20)
     painter.setPen( PySide.QtCore.Qt.white )
     painter.setBrush( self.palette().window() )
     painter.drawEllipse( self.width()/2-10, self.height()/2-10, 20, 20 )
@@ -95,23 +95,29 @@ class UIPopover(PySide.QtGui.QWidget):
       self.close()"""
 
   def mousePressEvent(self, event):
+    self.__setHighlightAction(self.__actionAtPoint(event.pos()))
     super(UIPopover, self).mousePressEvent(event)
     self.offset = event.pos()
+    self.setMouseTracking(False)      
+    #if self._highlightAction == None:
+    #  self.close()
     
 
   def mouseMoveEvent(self, event):
+    self.__setHighlightAction(self.__actionAtPoint(event.pos()))
     super(UIPopover, self).mouseMoveEvent(event)
     if self.offset:
       self.move(event.globalPos()-self.offset)
     
 
-  """def mouseMoveEvent(self, e):
-    self.__setHighlightAction(self.__actionAtPoint(e.pos()))"""
+  #def mouseMoveEvent(self, e):
+  #  self.__setHighlightAction(self.__actionAtPoint(e.pos()))
 
   def mouseReleaseEvent(self, e):
     if self._highlightAction != None:
       self._highlightAction.trigger()
       self.close()
+    self.setMouseTracking(True)      
 
   def enterEvent(self, e):
     self.__layoutActions()
@@ -156,6 +162,6 @@ def showPopover():
   _popover.showAt(PySide.QtGui.QCursor.pos())
 
 action = PySide.QtGui.QAction("Popsicle", None)
-action.setShortcut(PySide.QtGui.QKeySequence("F4"))
+action.setShortcut(PySide.QtGui.QKeySequence("Ctrl+9"))
 action.triggered.connect(showPopover)
 hiero.ui.addMenuAction("Edit", action)
