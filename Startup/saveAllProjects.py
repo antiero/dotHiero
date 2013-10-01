@@ -2,6 +2,7 @@ from hiero.core import *
 from hiero.ui import *
 from PySide.QtGui import *
 from PySide.QtCore import *
+from hiero.core.util import uniquify
 
 # Method to Save a new Version of the activeHrox Project
 class SaveAllProjects(QAction):
