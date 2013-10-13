@@ -15,10 +15,10 @@ class ThumbnailExportTask(TaskBase):
     """Initialize"""
     TaskBase.__init__( self, initDict )
 
-  kFirstFrame = "First Frame"
-  kMiddleFrame = "Middle Frame"
-  kLastFrame = "Last Frame"
-  kFirstMidLastFrame = "First, Middle, Last Frames"
+  kFirstFrame = "First"
+  kMiddleFrame = "Middle"
+  kLastFrame = "Last"
+  kCustomFrame = "Custom"
 
   def startTask(self):
     TaskBase.startTask(self)
@@ -37,23 +37,9 @@ class ThumbnailExportTask(TaskBase):
       outTime = sequence.outTime()
     except:
       pass
-    return inTime, outTime
+    return inTime, outTime  
 
-  def sequenceInOutPoints(self, sequence, indefault, outdefault):
-    """Return tuple (start, end) of in/out points. If either in/out is not set, return in/outdefault in its place."""
-    inTime, outTime = indefault, outdefault
-    try:
-      inTime = sequence.inTime()
-    except:
-      pass
-
-    try:
-      outTime = sequence.outTime()
-    except:
-      pass
-    return inTime, outTime    
-
-  def getFreezeFrameInfoFromTrackItemAtTime(self, trackItem,T):
+  def getthumbFrameInfoFromTrackItemAtTime(self, trackItem,T):
     """This does the convoluted magic to get the necessaries to produce a Still from a TrackItem at time T"""
     # File Source
     clip = trackItem.source()
@@ -63,36 +49,6 @@ class ThumbnailExportTask(TaskBase):
 
     first_last_frame = int(mapRetime(trackItem,T)+clip.sourceIn())
     return file_knob, first_last_frame, trackItem
-
-  def getThumbnailForItemAtPosition(self, trackItem, kPosition):
-    """This is the action to generate a QImage for an item at the given kPosition"""
-
-    if kPosition == self.kFirstFrame:
-      FreezeFrame = trackItem.sourceIn()
-    elif kPosition == self.kMiddleFrame:
-      FreezeFrame = int((trackItem.sourceOut()-trackItem.sourceIn())/2)
-    elif kPosition == self.kLastFrame:
-      FreezeFrame = trackItem.sourceOut()
-
-    # The Colour Transform of the TrackItem
-    colourTransform = trackItem.sourceMediaColourTransform()
-
-    # This is the (convoluted) magic to create a single Frame Clip in the Bin
-    fileKnob,currentFrame,ti = self.getFreezeFrameInfoFromTrackItemAtTime(trackItem,FreezeFrame)
-
-    # This is an adjustment for the Timeline time of the current TrackItem
-    FreezeFrame = currentFrame+trackItem.timelineIn()
-
-    # This creates a single Frame object
-    FreezeFrameClip = hiero.core.Clip(hiero.core.MediaSource(fileKnob),FreezeFrame, FreezeFrame)
-    FreezeFrameClip.sourceMediaColourTransform(colourTransform)
-    FreezeFrameClip.editFinished()
-
-    thumbnail = FreezeFrameClip.thumbnail()
-    return thumbnail
-
-    # This adds the FreezeFrameClip to the Bin and returns it with the appropriate TrackItem colourTransform applied
-    #clip = self.addStillClipToStillsBin(proj,FreezeFrameClip,colourTransform)
      
   def taskStep(self):
     # Write out the thumbnail for each item
@@ -100,56 +56,62 @@ class ThumbnailExportTask(TaskBase):
 
         # Get the frame type
         frameType = self._preset.properties()['frameType']
+
+        # Grab the custom offset value, in case its needed
+        customOffset = int(self._preset.properties()['customFrameOffset'])
         self._thumbFile = self.resolvedExportPath()
-        print 'RESOLVED EXPORT PATH IS: ' + str(self._thumbFile)
-        
+
         filename, ext = os.path.splitext(self._thumbFile)
         
         if isinstance(self._item, (Clip,Sequence)):
           # In and out points of the Sequence
           start, end = self.sequenceInOutPoints(self._item, 0, self._item.duration() - 1)
 
-          print "SEQUENCE START, END is: %i, %i" % (int(start), int(end))
           if frameType == self.kFirstFrame:
-            thumb = self._item.thumbnail(start)
+            thumbFrame = start
           if frameType == self.kMiddleFrame:
-            thumb = self._item.thumbnail(start+((end-start)/2))
+            thumbFrame = start+((end-start)/2)
           if frameType == self.kLastFrame:
-            thumb = self._item.thumbnail(end)
+            thumbFrame = end
+          if frameType == self.kCustomFrame:
+            if customOffset > end:
+              # If the custom offset exceeds the last frame, clamp at the last frame
+              hiero.core.log.info("Frame offset exceeds the source out frame. Clamping to the last frame")
+              thumbFrame = end
+            else:
+              thumbFrame = start+customOffset
         
         elif isinstance(self._item, TrackItem):
           if frameType == self.kFirstFrame:
-            FreezeFrame = self._item.sourceIn()
+            thumbFrame = self._item.sourceIn()
           elif frameType == self.kMiddleFrame:
-            FreezeFrame = int((self._item.sourceOut()-self._item.sourceIn())/2)
+            thumbFrame = self._item.sourceIn()+int((self._item.sourceOut()-self._item.sourceIn())/2)
           elif frameType == self.kLastFrame:
-            FreezeFrame = self._item.sourceOut()
+            thumbFrame = self._item.sourceOut()
+          elif frameType == self.kCustomFrame:
+            thumbFrame = self._item.sourceIn()+customOffset
+            if thumbFrame > self._item.sourceOut():
+              # If the custom offset exceeds the last frame, clamp at the last frame 
+              hiero.core.log.info("Frame offset exceeds the source out frame. Clamping to the last frame")
+              thumbFrame = self._item.sourceOut()
 
-          # The Colour Transform of the TrackItem
-          colourTransform = self._item.sourceMediaColourTransform()
+        thumb = self._item.thumbnail(thumbFrame)
 
-          # This is the (convoluted) magic to create a single Frame Clip in the Bin
-          fileKnob,currentFrame,ti = self.getFreezeFrameInfoFromTrackItemAtTime(self._item,FreezeFrame)
-
-          # This is an adjustment for the Timeline time of the current TrackItem
-          FreezeFrame = currentFrame+self._item.timelineIn()
-
-          # This creates a single Frame object
-          FreezeFrameClip = hiero.core.Clip(hiero.core.MediaSource(fileKnob),FreezeFrame, FreezeFrame)
-
-          thumb = FreezeFrameClip.thumbnail()
-          # This adds the FreezeFrameClip to the Bin and returns it with the appropriate TrackItem colourTransform applied
+        # If we find a resolved path containing a special <SOURCE_FRAME_f#> string, replace the filepath with f#
+        print 'RESOLVED PATH IS ' + str(self._thumbFile)
+        if self._thumbFile.find("<SOURCE_FRAME_f#>") != -1:
+          print 'FOUND THIS STRING MATCH: <SOURCE_FRAME_f#>'
+          self._thumbFile = self._thumbFile.replace("<SOURCE_FRAME_f#>","f%i" % thumbFrame)
+          print 'REPLACED, NOW THE PATH IS : %s' % self._thumbFile
 
         try:
-          print 'SAVING %s TO: self._thumbFile' % str(thumb)
-
           thumbSize = self._preset.properties()['thumbSize']
           if thumbSize != "Default":
             thumb = thumb.scaledToHeight(int(thumbSize))
 
           thumb.save(self._thumbFile)
         except:
-          print 'Unable to save thumb'
+          print 'Unable to save thumbnail for %s' % str(self._item)
   
     self._finished = True
     
@@ -158,12 +120,11 @@ class ThumbnailExportTask(TaskBase):
 class ThumbnailExportPreset(TaskPresetBase):
   def __init__(self, name, properties):
     TaskPresetBase.__init__(self, ThumbnailExportTask, name)
-    # Set any preset defaults here
-    # self._properties["SomeProperty"] = "SomeValue"
+
     # Set any preset defaults here
     self.properties()["format"] = "png"
     self.properties()["frameType"] = "First Frame"
-    self.properties()["customFrameOffset"] = 0
+    self.properties()["customFrameOffset"] = 12
     self.properties()["thumbSize"] = "Default"
 
     # Update preset with loaded data
@@ -171,7 +132,8 @@ class ThumbnailExportPreset(TaskPresetBase):
 
   def addCustomResolveEntries(self, resolver):
     resolver.addResolver("{ext}", "File format extension of the thumbnail", lambda keyword, task: self.properties()["format"])
-    resolver.addResolver("{frame}", "Frame type (first/middle/last)", lambda keyword, task: self.properties()["frameType"].split(' Frame')[0].lower())
+    resolver.addResolver("{sourceframe}", "The source frame number", lambda keyword, task: "<SOURCE_FRAME_f#>")    
+    resolver.addResolver("{frame}", "Frame type (first/middle/last)", lambda keyword, task: self.properties()["frameType"].lower())
   
   def supportedItems(self):
     return TaskPresetBase.kAllItems
