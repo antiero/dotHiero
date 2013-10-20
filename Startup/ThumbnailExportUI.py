@@ -2,8 +2,9 @@
 # Thumbnail image export task which can be used via the Export dialog via Shot, Clip or Sequence Processor
 # To install copy the ThumbnailExportTask.py and ThumbnailExportTaskUI.py to your <HIERO_PATH>/Python/Startup directory.
 # Keyword tokens exist for: 
-# {sourceframe} : source frame number
-# {frametype} : first/middle/last/custom frame type
+# {frametype} - Position where the thumbnail was taken from (first/middle/last/custom)
+# {srcframe} - The frame number of the original source clip file used for thumbnail
+# {dstframe} - The destination frame (timeline time) number used for the thumbnail
 # Antony Nasce, v1.0, 13/10/13
 
 import PySide.QtCore

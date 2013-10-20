@@ -61,8 +61,9 @@ class ThumbnailExportTask(hiero.core.TaskBase):
       elif frameType == self.kLastFrame:
         T = self._item.timelineIn()
       elif frameType == self.kCustomFrame:
+        customOffset = int(self._preset.properties()['customFrameOffset'])
         T = self._item.timelineIn()+customOffset
-        if thumbFrame > self._item.timelineOut():
+        if T > self._item.timelineOut():
           T = self._item.timelineOut()
 
     return str(T)
