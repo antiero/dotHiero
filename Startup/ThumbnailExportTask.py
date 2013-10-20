@@ -2,8 +2,9 @@
 # Thumbnail image export task which can be used via the Export dialog via Shot, Clip or Sequence Processor
 # To install copy the ThumbnailExportTask.py and ThumbnailExportTaskUI.py to your <HIERO_PATH>/Python/Startup directory.
 # Keyword tokens exist for: 
-# {sourceframe} : The source frame number of the thumbnail
-# {frametype} : Frame type name (first/middle/last/custom)
+# {frametype} - Position where the thumbnail was taken from (first/middle/last/custom)
+# {srcframe} - The frame number of the original source clip file used for thumbnail
+# {dstframe} - The destination frame (timeline time) number used for the thumbnail
 # Antony Nasce, v1.0, 13/10/13
 import os
 import hiero.core
@@ -37,8 +38,51 @@ class ThumbnailExportTask(hiero.core.TaskBase):
       pass
     return inTime, outTime
 
+  def mapRetime(self, ti, timelineTime):
+    """Maps the trackItem source in time to timeline in time, handling any retimes"""
+    return ti.sourceIn() + int((timelineTime - ti.timelineIn()) * ti.playbackSpeed())
+
+  def dstThumbnailFrameString(self):
+    """This is the timeline time string, used by {dstframe}, based on the item and first/middle/last/custom frame type"""
+
+    # For Clips and Sequences there's no such thing as dstTime
+    if isinstance(self._item, (hiero.core.Clip,hiero.core.Sequence)):
+      return self.srcThumbnailFrameString()
+    # Case for Shots on the timeline (TrackItems) is trickier, because these can be retimed
+    elif isinstance(self._item, hiero.core.TrackItem):
+      # Get the frame type
+      frameType = self._preset.properties()['frameType']
+
+      # We need the timeline time, based on the frame type
+      if frameType == self.kFirstFrame:
+        T = self._item.timelineIn()
+      elif frameType == self.kMiddleFrame:
+        T = self._item.timelineIn()+int((self._item.timelineOut()-self._item.timelineIn())/2)
+      elif frameType == self.kLastFrame:
+        T = self._item.timelineIn()
+      elif frameType == self.kCustomFrame:
+        T = self._item.timelineIn()+customOffset
+        if thumbFrame > self._item.timelineOut():
+          T = self._item.timelineOut()
+
+    return str(T)
+
+  def srcThumbnailFrameString(self):
+    """This does the magic to map to the source frame number to an actual dpx frame number, used by {srcframe}"""
+    # Easy case for Clips and Sequences... no retimes
+    if isinstance(self._item, (hiero.core.Clip,hiero.core.Sequence)):
+      return str(self._item.timelineOffset()+int(self.thumbnailFrameNumber()))
+
+    # Case for Shots on the timeline (TrackItems) is trickier, because these can be retimed
+    elif isinstance(self._item, hiero.core.TrackItem):
+      # Get the frame type
+      clip = self._item.source()
+      T = int(self.dstThumbnailFrameString())
+      actualFrame = int(self.mapRetime(self._item , T)+clip.sourceIn())
+      return str(int(actualFrame))
+
   # This determines where we take the thumbnail frame from, depending on the item and frame type
-  def sourceFrameNumber(self):
+  def thumbnailFrameNumber(self):
 
     # Get the frame type
     frameType = self._preset.properties()['frameType']
@@ -79,7 +123,7 @@ class ThumbnailExportTask(hiero.core.TaskBase):
           # If the custom offset exceeds the last frame, clamp at the last frame 
           hiero.core.log.info("Frame offset exceeds the source out frame. Clamping to the last frame")
           thumbFrame = self._item.sourceOut()
-    return str(int(thumbFrame)+1)
+    return int(thumbFrame)
      
   def taskStep(self):
     # Write out the thumbnail for each item
@@ -88,7 +132,7 @@ class ThumbnailExportTask(hiero.core.TaskBase):
       self._thumbFile = self.resolvedExportPath()
 
       # This deteremines the frame we call for the .thumbnail(frame) method, based on item and frame position      
-      thumbFrame = int(self.sourceFrameNumber())-1
+      thumbFrame = int(self.thumbnailFrameNumber())
 
       # This gives us a QImage object from the Clip, Sequence or TrackItem.
       thumb = self._item.thumbnail(thumbFrame)
@@ -147,8 +191,9 @@ class ThumbnailExportPreset(hiero.core.TaskPresetBase):
 
   def addCustomResolveEntries(self, resolver):
     resolver.addResolver("{ext}", "File format extension of the thumbnail", lambda keyword, task: self.properties()["format"])
-    resolver.addResolver("{frametype}", "Frame type name (first/middle/last/custom)", lambda keyword, task: self.properties()["frameType"].lower())    
-    resolver.addResolver("{sourceframe}", "The source frame number of the thumbnail", lambda keyword, task: task.sourceFrameNumber())
+    resolver.addResolver("{frametype}", "Position where the thumbnail was taken from (first/middle/last/custom)", lambda keyword, task: self.properties()["frameType"].lower())    
+    resolver.addResolver("{srcframe}", "The frame number of the original source clip file used for thumbnail", lambda keyword, task: task.srcThumbnailFrameString())
+    resolver.addResolver("{dstframe}", "The destination frame (timeline time) number used for the thumbnail", lambda keyword, task: task.dstThumbnailFrameString())
   
   def supportedItems(self):
     return hiero.core.TaskPresetBase.kAllItems

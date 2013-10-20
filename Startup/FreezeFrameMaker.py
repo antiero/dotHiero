@@ -66,9 +66,6 @@ def getFreezeFrameInfoFromTrackItemAtTime(trackItem,T):
   # File Source
   clip = trackItem.source()
   file_knob = clip.mediaSource().fileinfos()[0].filename()
-
-  clip = trackItem.source()
-
   first_last_frame = int(mapRetime(trackItem,T)+clip.sourceIn())
   return file_knob, first_last_frame, trackItem
 
