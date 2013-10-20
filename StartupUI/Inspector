@@ -1,5 +1,0 @@
-import hiero.core
-import hiero.ui
-from PySide import QtGui
-from PySide import QtCore
-
