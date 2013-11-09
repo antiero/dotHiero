@@ -2,6 +2,7 @@ import PySide.QtCore
 import PySide.QtGui
 import hiero.ui
 import math
+from hiero.ui.TagsMenu import TagsMenu
 
 class Pie(PySide.QtGui.QWidget):
   def __init__(self):
@@ -17,6 +18,7 @@ class Pie(PySide.QtGui.QWidget):
     font = PySide.QtGui.QFont()
     font.setPixelSize(16)
     self.setFont(font)
+    self.tagsMenu = TagsMenu()
   
   def addAction(self, a):
     PySide.QtGui.QWidget.addAction(self, a)
@@ -116,29 +118,32 @@ def showPieMenu():
   global _pie
   _pie = Pie()
   v = hiero.ui.activeView()
+
   if type(v) == hiero.ui.Viewer:
-    _pie.addAction( hiero.ui.findMenuAction("Zoom to Fit") )
-    _pie.addAction( hiero.ui.findMenuAction("Histogram") )
-    _pie.addAction( hiero.ui.findMenuAction("Waveform") )
-    _pie.addAction( hiero.ui.findMenuAction("Vectorscope") )
-  elif type(v) == hiero.ui.TimelineEditor:
-    _pie.addAction( hiero.ui.findMenuAction("Zoom to Fit") )
-    _pie.addAction( hiero.ui.findMenuAction("Mark Selection") )
-    _pie.addAction( hiero.ui.findMenuAction("Mark Clip") )
-    _pie.addAction( hiero.ui.findMenuAction("foundry.application.delete") )
+    _pie.tagsMenu.currentViewer = hiero.ui.currentViewer()
+    _pie.tagsMenu.currentClipSequence = _pie.tagsMenu.currentViewer.player().sequence()
+    menu = _pie.tagsMenu.createTagMenuForView('kViewer')
+    acts = menu.actions()
+  elif type(v) == hiero.ui.TimelineEditor or type(v) == hiero.ui.SpreadsheetView:
+    _pie.tagsMenu._selection = v.selection()
+    menu = _pie.tagsMenu.createTagMenuForView('kTimeline/kSpreadsheet')
+    acts = menu.actions()
+    if len(_pie.tagsMenu._selection) == 0:
+      _pie.tagsMenu._selection = v.sequence().items()
+      for act in acts:
+        if "Tag Shot Selection" in act.text():
+          acts.remove(act)
+    
   elif type(v) == hiero.ui.BinView:
-    _pie.addAction( hiero.ui.findMenuAction("foundry.application.delete") )
-    _pie.addAction( hiero.ui.findMenuAction("foundry.project.newBin") )
-    _pie.addAction( hiero.ui.findMenuAction("foundry.project.newTag") )
-  elif type(v) == hiero.ui.SpreadsheetView:
-    _pie.addAction( hiero.ui.findMenuAction("foundry.application.delete") )
-    _pie.addAction( hiero.ui.findMenuAction("foundry.application.selectAll") )
+    _pie.tagsMenu._selection = v.selection()
+    menu = _pie.tagsMenu.createTagMenuForView('kBin')
+    acts = menu.actions()
   else:
     _pie.addAction( PySide.QtGui.QAction("Apple Pie", None) )
-    _pie.addAction( PySide.QtGui.QAction("Cherry Pie", None) )
-    _pie.addAction( PySide.QtGui.QAction("Pork Pie", None) )
-    _pie.addAction( PySide.QtGui.QAction("Steak and Kidney", None) )
-    _pie.addAction( PySide.QtGui.QAction("Shepherd's Pie", None) )
+
+  for act in acts:
+    _pie.addAction(act)
+
   _pie.showAt(PySide.QtGui.QCursor.pos())
 
 action = PySide.QtGui.QAction("Mmmmmmm...Pie...", None)
