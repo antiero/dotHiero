@@ -130,8 +130,8 @@ def showPieMenu():
     acts = menu.actions()
     if len(_pie.tagsMenu._selection) == 0:
       _pie.tagsMenu._selection = v.sequence().items()
-      for act in acts:
-        if "Tag Shot Selection" in act.text():
+      for act in menu.actions():
+        if act.text() in ("Tag Shots", "Tag Tracks"):
           acts.remove(act)
     
   elif type(v) == hiero.ui.BinView:
@@ -146,7 +146,7 @@ def showPieMenu():
 
   _pie.showAt(PySide.QtGui.QCursor.pos())
 
-action = PySide.QtGui.QAction("Mmmmmmm...Pie...", None)
+action = PySide.QtGui.QAction("Tag Pie", None)
 action.setShortcut(PySide.QtGui.QKeySequence("/"))
 action.triggered.connect(showPieMenu)
 hiero.ui.addMenuAction("Edit", action)

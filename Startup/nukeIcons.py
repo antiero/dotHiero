@@ -13,8 +13,8 @@ elif PLATFORM == 'darwin':
 elif PLATFORM == 'linux2':
   iconBit = 'HieroNuke/plugins/icons/'
 
-hireo.core.nukeIconPath = os.path.join(PySide.QtGui.QApplication.applicationDirPath(),iconBit)
+hiero.core.nukeIconPath = os.path.join(PySide.QtGui.QApplication.applicationDirPath(),iconBit)
 
 # Find the Action and set a Custom icon to the QACtion...
-mc = hiero.ui.findMenuAction("hiero.project.export")
-mc.setIcon(PySide.QtGui.QIcon(hireo.core.nukeIconPath+'/Write.png'))
+#mc = hiero.ui.findMenuAction("hiero.project.export")
+#mc.setIcon(PySide.QtGui.QIcon(hiero.core.nukeIconPath+'/Write.png'))
