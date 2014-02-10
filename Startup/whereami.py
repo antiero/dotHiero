@@ -53,8 +53,8 @@ class VersionAllMenu:
   # These are a set of action names we can use for operating on multiple Clip/TrackItems
   eMaxVersion = "Max Version"
   eMinVersion = "Min Version"
-  eNextVersion = "Version Up"
-  ePreviousVersion = "Version Up"
+  eNextVersion = "Next Version"
+  ePreviousVersion = "Previous Version"
 
   def __init__(self):
       self._versionEverywhereMenu = None
