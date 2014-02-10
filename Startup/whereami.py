@@ -171,7 +171,7 @@ class VersionAllMenu:
             shot.minVersion()
           elif versionOption == self.eNextVersion:
             shot.nextVersion()
-          elif versionOption == self.ePrevVersion:
+          elif versionOption == self.ePreviousVersion:
             shot.prevVersion()
 
   # This handles events from the Project Bin View
