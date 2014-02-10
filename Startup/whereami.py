@@ -50,70 +50,129 @@ hiero.core.Clip.whereAmI = whereAmI
 # Menu which adds a Tags Menu to the Viewer, Project Bin and Timeline/Spreadsheet
 class VersionAllMenu:
 
+  # These are a set of action names we can use for operating on multiple Clip/TrackItems
+  eMaxVersion = "Max Version"
+  eMinVersion = "Min Version"
+  eNextVersion = "Version Up"
+  ePreviousVersion = "Version Up"
+
   def __init__(self):
       self._versionEverywhereMenu = None
       self._versionActions = []
 
       hiero.core.events.registerInterest("kShowContextMenu/kBin", self.binViewEventHandler)
 
-  def makeActionFromVersion(self, version):
+  def makeVersionActionForSingleClip(self, version):
+    """This is used to populate the list of Versions when a single Clip is selected"""
     action = QAction(version.name(),None)
     action.setData(lambda: version)
 
-    # We do this magic, so that the title string from the action is used to set the frame rate!
-    def methodWrapper():
-      print 'METHOD WRAPPER CALLED'
+    def updateAllTrackItems():
       currentClip = version.item()
       trackItems = currentClip.whereAmI()
-      for ti in trackItems:
-        print 'Setting TrackItem %s to be this version: %s ' % (str(ti), str(version))
-        ti.setCurrentVersion(version)
+      proj = currentClip.project()
+
+      # Make this all undo-able in a single Group undo
+      with proj.beginUndo("Update All Versions for %s" % currentClip.name()):
+        for ti in trackItems:
+          print 'Setting TrackItem %s to be this version: %s ' % (str(ti), str(version))
+          ti.setCurrentVersion(version)
+
+        # We also should update the current Version of the selected Clip for completeness...
+        currentClip.binItem().setActiveVersion(version)
+    
+    action.triggered.connect( updateAllTrackItems )
+    return action
+
+  # This is just a convenience method for returning QActions with a title, triggered method and icon.
+  def makeAction(self,title, method, icon = None):
+    action = QAction(title,None)
+    action.setIcon(QIcon(icon))
+    
+    # We do this magic, so that the title string from the action is used to set the frame rate!
+    def methodWrapper():
+      method(title)
     
     action.triggered.connect( methodWrapper )
-    return action  
+    return action     
+
+  def clipSelectionForActiveView(self):
+    """Helper method to return a list of Clips in the Active View"""
+    selection = hiero.ui.activeView().selection()
+
+    if len(selection)==0:
+      return None
+
+    clipItems = [item.activeItem() for item in selection if isinstance(item.activeItem(),hiero.core.Clip)]
+
+    bins = [item for item in selection if isinstance(item,hiero.core.Bin)]
+
+    # We search inside of a Bin for a Clip which is not already in clipBinItems
+    if len(bins)>0:
+      # Grab the Clips inside of a Bin and append them to a list
+      for bin in bins:
+        clips = hiero.core.findItemsInBin(bin,'Clip')
+        for clip in clips:
+          if clip not in clipItems:
+            clipItems.append(clip)
+
+    return clipItems
 
   # This generates the Version Up Everywhere menu
   def createVersionEveryWhereMenuForView(self, viewName):
 
-    selection = hiero.ui.activeView().selection()
-    self._versionActions = []
-    if len(selection)==0:
-      return
-
+    # We look to the activeView for a selection of Clips
+    clips = self.clipSelectionForActiveView()
     versionEverywhereMenu = QMenu("Version Up Everywhere")
+    self._versionActions = []
+    
+    # And bail if nothing is found
+    if len(clips)==0:
+      return versionEverywhereMenu
 
-    # If we're in the Bin, we could have a Sequence, Bin(s), or Clip(s) selected.
-    # We must ignore the Sequence case, and treat the other cases.
-    if viewName == 'kBin':
-      # If we've selected one Clip, we'll present a unique list of all available versions to pick form
+    # Now, if we have just one Clip selected, we'll form a special menu, which lists all versions
+    if len(clips)==1:
+      versions = clips[0].binItem().items()
+      for version in versions:
+        self._versionActions+=[self.makeVersionActionForSingleClip(version)]
 
-      clipBinItems = [item for item in selection if isinstance(item.activeItem(),hiero.core.Clip)]
+    elif len(clips)>1:
+      # We will add Max/Min/Prev/Next options, which can be called on a TrackItem, without the need for a Version object
+      self._versionActions+=[self.makeAction(self.eMaxVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+      self._versionActions+=[self.makeAction(self.eMinVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+      self._versionActions+=[self.makeAction(self.eNextVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+      self._versionActions+=[self.makeAction(self.ePreviousVersion,self.setTrackItemVersionForClipSelection, icon=None)]
 
-      print 'Got this many Clips: ' + str(clipBinItems)
-      bins = [item for item in selection if isinstance(item,hiero.core.Bin)]
+    for act in self._versionActions:
+      versionEverywhereMenu.addAction(act)
 
-      # We search inside of a Bin for a Clip which is not already in clipBinItems
-      if len(bins)>0:
-        # Grab the Clips inside of a Bin and append them to a list
-        for bin in bins:
-          clips = hiero.core.findItemsInBin(bin,'Clip')
-          for clip in clips:
-            if clip not in clipBinItems:
-              clipBinItems.append(clip)
-
-      # Now, if we have just one Clip selected, we'll form a special menu, which lists all versions
-      if len(clipBinItems)==1:
-        versions = clipBinItems[0].items()
-        for version in versions:
-          self._versionActions+=[self.makeActionFromVersion(version)]
-          
-
-      for act in self._versionActions:
-        versionEverywhereMenu.addAction(act)
-
-        # We have a mixture of Clips, so we can't pick a Version, offer options for Prev/Next/Min/Max
     return versionEverywhereMenu
 
+  def setTrackItemVersionForClipSelection(self,versionOption):
+
+    clipSelection = self.clipSelectionForActiveView()
+
+    if len(clipSelection)==0:
+      return
+
+    proj = clipSelection[0].project()
+
+    with proj.beginUndo("Update All Clip Versions"):
+      for clip in clipSelection:
+        # Look to see if it exists in a TrackItem somewhere...
+        clipUsage = clip.whereAmI('TrackItem')
+
+        # Next, depending on the versionOption, make the appropriate update
+        # There's probably a more neat/compact way of doing this...
+        for shot in clipUsage:
+          if versionOption == self.eMaxVersion:
+            shot.maxVersion()
+          elif versionOption == self.eMinVersion:
+            shot.minVersion()
+          elif versionOption == self.eNextVersion:
+            shot.nextVersion()
+          elif versionOption == self.ePrevVersion:
+            shot.prevVersion()
 
   # This handles events from the Project Bin View
   def binViewEventHandler(self,event):
