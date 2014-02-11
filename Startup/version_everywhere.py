@@ -72,6 +72,7 @@ class VersionAllMenu:
       hiero.core.events.registerInterest("kShowContextMenu/kBin", self.binViewEventHandler)
 
   def showVersionUpdateReportFromShotManifest(self,sequenceShotManifest):
+      """This just displays an info Message box, based on a Sequence[Shot] manifest dictionary"""
 
       # Now present an info dialog, explaining where shots were updated
       updateReportString = "Updated:\n"
@@ -88,7 +89,9 @@ class VersionAllMenu:
       infoBox.exec_()     
 
   def makeVersionActionForSingleClip(self, version):
-    """This is used to populate the list of Versions when a single Clip is selected"""
+    """This is used to populate the QAction list of Versions when a single Clip is selected in the BinView. 
+    It also triggers the Version Update action based on the version passed to it. 
+    (Not sure if this is good design practice, but it's compact!)"""
     action = QAction(version.name(),None)
     action.setData(lambda: version)
 
@@ -238,6 +241,7 @@ class VersionAllMenu:
       return
 
     # Only add the Menu if Bins or Sequences are selected (this ensures menu isn't added in the Tags Pane)
+    # To-Do: Do the same for the Timeline and Spreadsheet Views...
     if len(selection) > 0:
       self._versionEverywhereMenu = self.createVersionEveryWhereMenuForView('kBin')
       
