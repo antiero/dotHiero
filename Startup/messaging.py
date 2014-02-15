@@ -45,7 +45,7 @@ def showError(prompt):
 
 def clearStatusMessage():
   """
-  clearStatusMessage() -> Removes any message being shown in the Hiero statusbar.
+  clearStatusMessage() -> Removes any message being shown in the Mainwindow's statusbar.
   """
   hiero.ui.statusBar().clearMessage()
 
@@ -57,9 +57,9 @@ def statusMessage():
 
 def setStatusMessage(message, time = 0, showBarIfHidden=True):
   """
-  setStatusMessage(message, time = 0) -> Shows a message in the Hiero statusbar.
+  setStatusMessage(message, time = 0) -> Shows a message in the Mainwindow's statusbar.
     Displays the given message for the specified number of milliseconds, specified by time keyword argument.
-    If time is 0 (default), the message remains displayed until hiero.ui.messaging.clearStatusMessage() is called or until setStatusMesssage() is called again to change the message.
+    If time is 0 (default), the message remains displayed until hiero.ui.clearStatusMessage() is called or until setStatusMesssage() is called again to change the message.
     
     @param message: string to display in the Mainwindow statusbar
     @param time: (optional) - a duration value in milliseconds, after which which the status message will be hidden.
