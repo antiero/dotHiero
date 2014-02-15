@@ -55,7 +55,7 @@ def statusMessage():
   """
   return unicode(hiero.ui.statusBar().currentMessage())
 
-def setStatusMessage(message, time = 0, showBarIfHidden=True):
+def setStatusMessage(message, time = 0, showBarIfHidden = True):
   """
   setStatusMessage(message, time = 0) -> Shows a message in the Mainwindow's statusbar.
     Displays the given message for the specified number of milliseconds, specified by time keyword argument.
@@ -63,6 +63,7 @@ def setStatusMessage(message, time = 0, showBarIfHidden=True):
     
     @param message: string to display in the Mainwindow statusbar
     @param time: (optional) - a duration value in milliseconds, after which which the status message will be hidden.
+    @param showBarIfHidden (optional) - If 'True' and the statusbar is hidden, this will force the statusbar to be shown. 'False' will keep it hidden.
     @return: None 
   """
   mBar = hiero.ui.statusBar()
