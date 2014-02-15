@@ -67,7 +67,7 @@ def setStatusMessage(message, time = 0, showBarIfHidden=True):
   """
   mBar = hiero.ui.statusBar()
   if showBarIfHidden:
-    if not mBar.isVisible()
+    if not mBar.isVisible():
       mBar.show()
   mBar.showMessage(message, timeout = time)
 
