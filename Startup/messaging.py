@@ -30,7 +30,7 @@ def showWarning(prompt):
     @param prompt: Present user with this warning message.
     @return: None
   """
-  hiero.core.log.warning(prompt)
+  hiero.core.log.info(prompt)
   dialog = QtGui.QMessageBox.warning( hiero.ui.mainWindow(), "Warning", unicode(prompt))
   
 def showError(prompt):
