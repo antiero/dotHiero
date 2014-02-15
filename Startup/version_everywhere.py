@@ -5,7 +5,6 @@
 # 1) Copy file to ~/.hiero/Python/Startup
 # 2) Right-click on Clip(s) or Bins containin Clips in in the Bin View
 # 3) Select Version Everywhere > OPTION to update the version in all shots where the Clip is used in the Project.
-
 import hiero.core
 from PySide.QtGui import *
 
@@ -37,8 +36,17 @@ def whereAmI(self, searchType='TrackItem'):
   clipUsedIn = []
   if isinstance(searches[0],hiero.core.TrackItem):
     for shot in searches:
-      if shot.source().binItem() == self.binItem():
-        clipUsedIn.append(shot)
+      # We have to wrap this in a try/except because it's possible through the Python API for a Shot to exist without a Clip in the Bin
+      try:
+
+        # For versioning to be work, we must look to the BinItem that a Clip is wrapped in.
+        if shot.source().binItem() == self.binItem():
+          clipUsedIn.append(shot)
+
+      # If we throw an exception here its because the Shot did not have a Source Clip in the Bin.
+      except RuntimeError:
+        #print 'Unable to find Parent Clip BinItem for Shot: %s, Source:%s' % (shot, shot.source())
+        pass
 
   # Case 1: Looking for Shots (trackItems)
   elif isinstance(searches[0],hiero.core.Sequence):
@@ -56,14 +64,17 @@ def whereAmI(self, searchType='TrackItem'):
 # Add whereAmI method to Clip object
 hiero.core.Clip.whereAmI = whereAmI
 
-# Menu which adds a Tags Menu to the Viewer, Project Bin and Timeline/Spreadsheet
-class VersionAllMenu:
+#### MAIN VERSION EVERYWHERE GUBBINS #####
+class VersionAllMenu(object):
 
   # These are a set of action names we can use for operating on multiple Clip/TrackItems
   eMaxVersion = "Max Version"
   eMinVersion = "Min Version"
   eNextVersion = "Next Version"
   ePreviousVersion = "Previous Version"
+
+  # This is the title used for the Version Menu title. It's long isn't it?
+  actionTitle = "Set Version For All Shots"
 
   def __init__(self):
       self._versionEverywhereMenu = None
@@ -75,17 +86,24 @@ class VersionAllMenu:
       """This just displays an info Message box, based on a Sequence[Shot] manifest dictionary"""
 
       # Now present an info dialog, explaining where shots were updated
-      updateReportString = "Updated:\n"
+      updateReportString = "The following Versions were updated:\n"
       for seq in sequenceShotManifest.keys():
-        updateReportString+="%s - Shots: " % (seq.name())
+        updateReportString+="%s:\n  Shots:\n" % (seq.name())
         for shot in sequenceShotManifest[seq]:
-          updateReportString+=' %s (New Version: %s)' % (shot.name(), shot.currentVersion().name())
+          updateReportString+='  %s\n    (New Version: %s)\n' % (shot.name(), shot.currentVersion().name())
         updateReportString+='\n'
 
       infoBox = QMessageBox(hiero.ui.mainWindow())
       infoBox.setIcon(QMessageBox.Information)
-      infoBox.setInformativeText("Clip Versions updated.\nShow Details for more info")
-      infoBox.setDetailedText(updateReportString)
+
+      if len(sequenceShotManifest)<=0:
+        infoBox.setText("No Shot Versions were updated")
+        infoBox.setInformativeText("Clip could not be found in any Shots in this Project")
+      else:
+        infoBox.setText("Versions were updated in %i Sequences of this Project." % (len(sequenceShotManifest)))
+        infoBox.setInformativeText("Show Details for more info.")
+        infoBox.setDetailedText(updateReportString)
+
       infoBox.exec_()     
 
   def makeVersionActionForSingleClip(self, version):
@@ -141,8 +159,10 @@ class VersionAllMenu:
     if len(selection)==0:
       return None
 
-    clipItems = [item.activeItem() for item in selection if isinstance(item.activeItem(),hiero.core.Clip)]
+    # We could have a mixture of Bins and Clips selected, so s
+    clipItems = [item.activeItem() for item in selection if hasattr(item, "activeItem") and isinstance(item.activeItem(),hiero.core.Clip)]
 
+    # We'll also append Bins here, and see if can find Clips inside
     bins = [item for item in selection if isinstance(item,hiero.core.Bin)]
 
     # We search inside of a Bin for a Clip which is not already in clipBinItems
@@ -161,7 +181,7 @@ class VersionAllMenu:
 
     # We look to the activeView for a selection of Clips
     clips = self.clipSelectionForActiveView()
-    versionEverywhereMenu = QMenu("Version Up Everywhere")
+    versionEverywhereMenu = QMenu(self.actionTitle)
     self._versionActions = []
     
     # And bail if nothing is found
@@ -170,7 +190,9 @@ class VersionAllMenu:
 
     # Now, if we have just one Clip selected, we'll form a special menu, which lists all versions
     if len(clips)==1:
-      versions = clips[0].binItem().items()
+
+      # Get a reversed list of Versions, so that bigger ones appear at top
+      versions = list(reversed(clips[0].binItem().items()))
       for version in versions:
         self._versionActions+=[self.makeVersionActionForSingleClip(version)]
 
@@ -223,6 +245,13 @@ class VersionAllMenu:
             shot.nextVersion()
           elif versionOption == self.ePreviousVersion:
             shot.prevVersion()
+
+      # Finally, for completeness, set the Max/Min version of the Clip too (if chosen)
+      # Note: It doesn't make sense to do Next/Prev on a Clip here because next/prev means different things for different Shots
+      if versionOption == self.eMaxVersion:
+        clip.binItem().maxVersion()
+      elif versionOption == self.eMinVersion:
+        clip.binItem().minVersion()
 
     # Now disaplay a Dialog which informs the user of where and what was changed
     self.showVersionUpdateReportFromShotManifest(sequenceShotManifest)
