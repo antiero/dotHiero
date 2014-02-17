@@ -45,4 +45,4 @@ def whereAmI(self, searchType='TrackItem'):
   return clipUsedIn
 
 # Add whereAmI method to Clip object
-hiero.core.Clip.whereAmI = whereAmI
+#hiero.core.Clip.whereAmI = whereAmI
