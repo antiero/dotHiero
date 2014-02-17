@@ -81,6 +81,7 @@ class VersionAllMenu(object):
       self._versionActions = []
 
       hiero.core.events.registerInterest("kShowContextMenu/kBin", self.binViewEventHandler)
+      hiero.core.events.registerInterest("kShowContextMenu/kTimeline", self.binViewEventHandler)
 
   def showVersionUpdateReportFromShotManifest(self,sequenceShotManifest):
       """This just displays an info Message box, based on a Sequence[Shot] manifest dictionary"""
@@ -177,32 +178,41 @@ class VersionAllMenu(object):
     return clipItems
 
   # This generates the Version Up Everywhere menu
-  def createVersionEveryWhereMenuForView(self, viewName):
+  def createVersionEveryWhereMenuForView(self, view):
 
-    # We look to the activeView for a selection of Clips
-    clips = self.clipSelectionForActiveView()
     versionEverywhereMenu = QMenu(self.actionTitle)
     self._versionActions = []
-    
-    # And bail if nothing is found
-    if len(clips)==0:
-      return versionEverywhereMenu
+    if isinstance(view,hiero.ui.BinView):
+      # We look to the activeView for a selection of Clips
+      clips = self.clipSelectionForActiveView()
 
-    # Now, if we have just one Clip selected, we'll form a special menu, which lists all versions
-    if len(clips)==1:
+      
+      # And bail if nothing is found
+      if len(clips)==0:
+        return versionEverywhereMenu
 
-      # Get a reversed list of Versions, so that bigger ones appear at top
-      versions = list(reversed(clips[0].binItem().items()))
-      for version in versions:
-        self._versionActions+=[self.makeVersionActionForSingleClip(version)]
+      # Now, if we have just one Clip selected, we'll form a special menu, which lists all versions
+      if len(clips)==1:
 
-    elif len(clips)>1:
+        # Get a reversed list of Versions, so that bigger ones appear at top
+        versions = list(reversed(clips[0].binItem().items()))
+        for version in versions:
+          self._versionActions+=[self.makeVersionActionForSingleClip(version)]
+
+      elif len(clips)>1:
+        # We will add Max/Min/Prev/Next options, which can be called on a TrackItem, without the need for a Version object
+        self._versionActions+=[self.makeAction(self.eMaxVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+        self._versionActions+=[self.makeAction(self.eMinVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+        self._versionActions+=[self.makeAction(self.eNextVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+        self._versionActions+=[self.makeAction(self.ePreviousVersion,self.setTrackItemVersionForClipSelection, icon=None)]
+
+    elif isinstance(view,hiero.ui.TimelineEditor):
       # We will add Max/Min/Prev/Next options, which can be called on a TrackItem, without the need for a Version object
       self._versionActions+=[self.makeAction(self.eMaxVersion,self.setTrackItemVersionForClipSelection, icon=None)]
       self._versionActions+=[self.makeAction(self.eMinVersion,self.setTrackItemVersionForClipSelection, icon=None)]
       self._versionActions+=[self.makeAction(self.eNextVersion,self.setTrackItemVersionForClipSelection, icon=None)]
-      self._versionActions+=[self.makeAction(self.ePreviousVersion,self.setTrackItemVersionForClipSelection, icon=None)]
-
+      self._versionActions+=[self.makeAction(self.ePreviousVersion,self.setTrackItemVersionForClipSelection, icon=None)]      
+    
     for act in self._versionActions:
       versionEverywhereMenu.addAction(act)
 
@@ -269,14 +279,17 @@ class VersionAllMenu(object):
     if selection == None:
       return
 
+    view = hiero.ui.activeView()
+    print 'VIEW IS: ' + str(view)
     # Only add the Menu if Bins or Sequences are selected (this ensures menu isn't added in the Tags Pane)
     # To-Do: Do the same for the Timeline and Spreadsheet Views...
     if len(selection) > 0:
-      self._versionEverywhereMenu = self.createVersionEveryWhereMenuForView('kBin')
+      self._versionEverywhereMenu = self.createVersionEveryWhereMenuForView(view)
       
       # Insert the Tags menu with the Localisation Menu
-      hiero.ui.insertMenuAction(self._versionEverywhereMenu.menuAction(), event.menu)
+      hiero.ui.insertMenuAction(self._versionEverywhereMenu.menuAction(), event.menu, after="foundry.menu.version")
     return
+
 
 # Instantiate the Menu to get it to register itself.
 VersionAllMenu = VersionAllMenu()
