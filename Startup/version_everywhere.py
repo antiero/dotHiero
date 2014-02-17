@@ -1,10 +1,10 @@
 # version_up_everywhere.py 
-# Adds action to Bin View to enable a Clip/Shot to be Min/Max/Next/Prev versioned in all shots used in a Project.
+# Adds action to enable a Clip/Shot to be Min/Max/Next/Prev versioned in all shots used in a Project.
 #
 # Usage: 
 # 1) Copy file to ~/.hiero/Python/Startup
-# 2) Right-click on Clip(s) or Bins containing Clips in in the Bin View, or on Shots in the Timeline
-# 3) Set Version For All Shots > OPTION to update the version in all shots where the Clip is used in the Project.
+# 2) Right-click on Clip(s) or Bins containing Clips in in the Bin View, or on Shots in the Timeline/Spreadsheet
+# 3) Set Version for all Shots > OPTION to update the version in all shots where the Clip is used in the Project.
 
 import hiero.core
 from PySide.QtGui import *
@@ -75,7 +75,7 @@ class VersionAllMenu(object):
   ePreviousVersion = "Previous Version"
 
   # This is the title used for the Version Menu title. It's long isn't it?
-  actionTitle = "Set Version For All Shots"
+  actionTitle = "Set Version for all Shots"
 
   def __init__(self):
       self._versionEverywhereMenu = None
@@ -83,6 +83,7 @@ class VersionAllMenu(object):
 
       hiero.core.events.registerInterest("kShowContextMenu/kBin", self.binViewEventHandler)
       hiero.core.events.registerInterest("kShowContextMenu/kTimeline", self.binViewEventHandler)
+      hiero.core.events.registerInterest("kShowContextMenu/kSpreadsheet", self.binViewEventHandler)
 
   def showVersionUpdateReportFromShotManifest(self,sequenceShotManifest):
       """This just displays an info Message box, based on a Sequence[Shot] manifest dictionary"""
@@ -177,7 +178,7 @@ class VersionAllMenu(object):
             if clip not in clipItems:
               clipItems.append(clip)
     
-    elif isinstance(view,hiero.ui.TimelineEditor):
+    elif isinstance(view,(hiero.ui.TimelineEditor,hiero.ui.SpreadsheetView)):
       # Here, we have shots. To get to the Clip froma TrackItem, just call source()
       clipItems = [item.source() for item in selection if hasattr(item, "source") and isinstance(item,hiero.core.TrackItem)]
 
