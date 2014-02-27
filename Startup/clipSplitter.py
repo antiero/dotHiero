@@ -3,11 +3,9 @@
 # Copy clipSplitter.py to your <HIERO_PATH>/Python/Startup dir
 # Right-click on Clips in the Bin that should be Split > Split Clip
 # Result: You should have new Split Clips in the Bin.
-# Note: The Clip splitter will not add
 import hiero.core
 from PySide.QtGui import *
 import os, re
-
 
 #### Clip Helper Methods ####
 def getClipSelection(selection):
@@ -45,7 +43,7 @@ class SplitClipAction(QAction):
   def splitClipSelection(self):
     selection = hiero.ui.activeView().selection()
 
-    clipSelection = [item.activeItem() for item in selection if hasattr(item,'activeItem') and isinstance(item.activeItem(),hiero.core.Clip)]
+    clipSelection = getClipSelection(selection)
     if len(clipSelection)<=0:
       return
 
@@ -109,7 +107,7 @@ class SplitClipAction(QAction):
 
         # Only add this new Clip if an identical Clip cannot be found in the Project
         if clipInstancesInProject(clip)==0:
-          print 'Creating sub-clip for %s, first=%d, last=%d' % (filePathPadded, _first,_last)
+          print 'Adding new sub-Clip for %s, first=%d, last=%d' % (filePathPadded, _first,_last)
           clipBinRoot.addItem(hiero.core.BinItem(clip))
 
     if deleteOriginal:
