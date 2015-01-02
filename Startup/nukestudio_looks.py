@@ -1,13 +1,15 @@
-# Looks Menu - Conveniently allow grade node presets to be saved/reused in a Project
+# Look Maker - Conveniently allow grade node presets 
 # Allow Effects to be saved/restored within a Studio Project
 # Right-click Effect > Save Look 
 from PySide.QtGui import *
 import hiero.core
+import hiero.ui
 import nuke
 import re
 import os
 import uuid
 import ast
+import glob
 
 class LookNameDialog(QDialog):
   def __init__(self):
@@ -35,13 +37,14 @@ class LookNameDialog(QDialog):
 
 class LooksMenu(object):
   def __init__(self):
-    self._saveLookAction = hiero.ui.createMenuAction("Save...", self.saveGradeAsLook, QIcon("File.png"))
-    self._clearLooksAction = hiero.ui.createMenuAction("Clear Looks", self.clearLooksFromProject, QIcon("Delete.png"))
+    self._saveLookAction = hiero.ui.createMenuAction("Save Look...", self.saveGradeAsLook)
+    self._clearLooksAction = hiero.ui.createMenuAction("Clear Project Looks", self.clearLooksFromProject)
+    self._clearLookThumbnailCacheAction = hiero.ui.createMenuAction("Clear Look Thumbnails", self.clearLooksThumbnailCache)
     self._lookNameDialog = LookNameDialog()
 
     # Get the .nuke Plugin path for saving thumbnails of Looks
     rootPluginPath = nuke.pluginPath()[0]
-    self._thumbnailPath = os.path.join(rootPluginPath, "Looks", "thumbnails")
+    self._lookThumbnailPath = os.path.join(rootPluginPath, "Looks", "thumbnails")
 
     hiero.core.events.registerInterest((hiero.core.events.EventType.kShowContextMenu, hiero.core.events.EventType.kTimeline), self.eventHandler)
 
@@ -55,8 +58,7 @@ class LooksMenu(object):
     im = hiero.ui.currentViewer().image()
 
     # Get the .nuke Plugin path..
-    rootPluginPath = nuke.pluginPath()[0]
-    lookThumbnailPath = os.path.join(rootPluginPath, "Looks", "thumbnails")
+    lookThumbnailPath = os.path.join(self._lookThumbnailPath, "Looks", "thumbnails")
     if not os.path.isdir(lookThumbnailPath):
       os.makedirs(lookThumbnailPath)
 
@@ -72,8 +74,6 @@ class LooksMenu(object):
     """Builds a list of looks that can be restored, based on the 'Looks' Bin in the tags Project"""
     # Locate the 'Looks' tag Bin
     self._looksMenu = QMenu("Looks")
-    self._looksMenu.addAction(self._saveLookAction)
-    self._looksMenu.addAction(self._clearLooksAction)
 
     project = self.getActiveProject()
     self._restoreLookSubMenu = QMenu("Restore")
@@ -84,14 +84,17 @@ class LooksMenu(object):
     for tag in tags:
       action = QAction(tag.name(), None)
       action.triggered.connect( lambda: self.addLookToActiveSelectionFromTag(tag) )
+      action.setIcon(QIcon(tag.icon()))
       self._tagActions+=[action]
     
     for act in self._tagActions:
       self._restoreLookSubMenu.addAction(act)
 
     self._looksMenu.addMenu(self._restoreLookSubMenu)
-    
-    return self._looksMenu    
+    self._looksMenu.addAction(self._saveLookAction)
+    self._looksMenu.addAction(self._clearLooksAction)
+
+    return self._looksMenu
 
   def addLookToActiveSelectionFromTag(self, lookTag):
     """Applies a Grade Look to the current selection"""
@@ -104,7 +107,7 @@ class LooksMenu(object):
 
     # We can only handle the following cases.. either:
     # 1 - Simple Case - Selection is a Grade node -> just reset the node and restore values
-    gradeSoftEffects = self.getGradeEffectsFromSelection(selection)
+    gradeSoftEffects = self.getEffectsFromSelection(selection)
 
     for grade in gradeSoftEffects:
       # For each soft effect, reset knobs to default, then set them...
@@ -123,6 +126,7 @@ class LooksMenu(object):
           gradeNode[knobName].setValue( floatValues )
 
   def showLookTextDialogForSoftEffect(self, effect):
+    """Raises a dialog to ask for name of Look to save"""
     if self._lookNameDialog.exec_():
       tagName = self._lookNameDialog._lookNameTextEdit.text()
       nodeTag = self.createTagObjectForNode(effect.node(), tagName)
@@ -153,8 +157,9 @@ class LooksMenu(object):
     tag.setIcon(thumbnail)
     return tag
 
-  def getGradeEffectsFromSelection(self, selection):
-    gradeEffects = [item for item in selection if isinstance(item, hiero.core.SubTrackItem) and item.node().Class()=="Grade"]
+  def getEffectsFromSelection(self, selection, nodeClass = "Grade"):
+    """Returns a list of EffectTrackItems from a selection (default is Grade nodes)"""
+    gradeEffects = [item for item in selection if isinstance(item, hiero.core.SubTrackItem) and item.node().Class()==nodeClass]
     return gradeEffects
 
   def getLooksTagBinForProject(self, project):
@@ -186,6 +191,15 @@ class LooksMenu(object):
         except OSError:
           pass
 
+  def clearLooksThumbnailCache(self):
+    """Removes all Look thumbnails from ~/.nuke/Looks/thumbnail dir"""
+    filelist = glob.glob(self._lookThumbnailPath + "/*")
+    for f in filelist:
+      try:
+        os.remove(f)
+      except:
+        print "Unable to remove file %s f"
+
   def addTagToProjectLooksBin(self, tag, project):
     looksBin = self.getLooksTagBinForProject(project)
     looksBin.addItem(tag)
@@ -203,7 +217,7 @@ class LooksMenu(object):
       return
 
     selection = view.selection()
-    gradeEffects = self.getGradeEffectsFromSelection(selection)
+    gradeEffects = self.getEffectsFromSelection(selection)
 
     if len(gradeEffects)==1:
       gradeEffects[0].node() 
@@ -224,3 +238,5 @@ class LooksMenu(object):
       event.menu.addMenu(lookMenu)
 
 lm = LooksMenu()
+cacheMenu = hiero.ui.findMenuAction("foundry.menu.cache")
+hiero.ui.insertMenuAction(lm._clearLookThumbnailCacheAction, cacheMenu.menu(), after="Clear Playback Cache")
