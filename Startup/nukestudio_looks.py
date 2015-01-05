@@ -5,7 +5,6 @@ from PySide.QtGui import *
 import hiero.core
 import hiero.ui
 import nuke
-import re
 import os
 import uuid
 import ast
@@ -118,12 +117,8 @@ class LooksMenu(object):
         # Get a literal eval value as this is stored as a string in the Tag...
         if key.startswith("tag.Grade."):
           knobName = key.replace("tag.Grade.", "")
-          stringValue = ast.literal_eval(str(tagMetadata.value(key)))
-          floatValues = map(float, stringValue)
-          if len(floatValues)==1:
-            floatValues=floatValues[0]
-
-          gradeNode[knobName].setValue( floatValues )
+          value = ast.literal_eval(str(tagMetadata.value(key)))
+          gradeNode[knobName].setValue( value )
 
   def showLookTextDialogForSoftEffect(self, effect):
     """Raises a dialog to ask for name of Look to save"""
@@ -139,18 +134,18 @@ class LooksMenu(object):
 
     # Add a Metadata key to define this Tag as a Look Tag
     tagMetadata.setValue("tag.nodeClass", "Grade")
-    knobValues = node.writeKnobs(nuke.WRITE_NON_DEFAULT_ONLY | nuke.TO_VALUE)
 
-    # [knob1, value1, knob2, {value2}...]
-    knobValueRawList = knobValues.split('\n')[1:]
-    for knobPair in knobValueRawList:
-      knobName = knobPair.split()[0]
+    # Returns a string like 'whitepoint gamma' ...
+    knobNameString = node.writeKnobs(nuke.WRITE_NON_DEFAULT_ONLY)
 
-      # raw = ['whitepoint {2 2 1.1 1}', 'white 0.55']
-      values = re.findall(r"[-+]?\d*\.\d+|[-+]?\d+", knobPair)
+    # Split this string to get knob names...
+    knobNames = knobNameString.split()
+
+    for knobName in knobNames:
+      knobValue = node[knobName].value()
 
       # Set this as a key in the Tag metadata collection prefix with tag.Grade.
-      tagMetadata.setValue("tag.Grade."+knobName, str(values))
+      tagMetadata.setValue("tag.Grade."+knobName, str(knobValue))
 
     # Save a Thumbnail of the Current Viewer - this 
     thumbnail = self.saveLookThumbnailToDisk()
