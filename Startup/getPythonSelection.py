@@ -66,5 +66,5 @@ class SelectedShotAction(QAction):
 SelectedShotAction = SelectedShotAction()
 
 # And to enable the Ctrl/Cmd+Alt+C, add it to the Menu bar Edit menu...
-editMenu = hiero.ui.findMenuAction("Edit")
+editMenu = hiero.ui.findMenuAction("foundry.menu.edit")
 editMenu.menu().addAction(SelectedShotAction)
