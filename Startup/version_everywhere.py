@@ -285,8 +285,6 @@ class VersionAllMenu(object):
     # Only add the Menu if Bins or Sequences are selected (this ensures menu isn't added in the Tags Pane)
     if len(selection) > 0:
       self._versionEverywhereMenu = self.createVersionEveryWhereMenuForView(view)
-      
-      # Insert the Tags menu with the Localisation Menu
       hiero.ui.insertMenuAction(self._versionEverywhereMenu.menuAction(), event.menu, after="foundry.menu.version")
     return
 
